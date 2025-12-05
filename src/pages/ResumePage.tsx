@@ -136,7 +136,7 @@ export default function ResumePage() {
             </div>
 
             <div className="mb-4 flex items-center justify-between rounded-lg bg-white/50 px-4 py-2">
-              <span className="text-sm font-medium text-gray-700">1/1 페이지</span>
+              <span className="text-sm font-medium text-gray-700">2/2 페이지</span>
               <div className="flex gap-3">
                 <button
                   onClick={() => changeScale(-0.1)}
