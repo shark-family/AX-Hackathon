@@ -1,0 +1,175 @@
+\documentclass[a4paper, 11pt]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.0cm, bottom=2.0cm, left=2.0cm, right=2.0cm]{geometry}
+\usepackage{fontspec}
+
+% 한글 및 다국어 지원
+\usepackage[english]{babel}
+\babelprovide[import, main, onchar=ids fonts]{korean}
+\babelfont{rm}{Noto Sans}
+\babelfont[korean]{rm}{Noto Sans CJK KR}
+
+% 패키지 로드
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{graphicx}  % 이미지 삽입용
+\usepackage{multirow}  % 표의 행(세로) 합치기용
+\usepackage{array}     % 표 정렬 및 높이 조절용
+\usepackage[hidelinks]{hyperref}
+\usepackage[most]{tcolorbox}
+\usepackage{tabularx}
+
+% --- 색상 정의 ---
+\definecolor{navyblue}{RGB}{0, 51, 102}
+\definecolor{sectionbg}{RGB}{245, 247, 250}
+
+% --- 커스텀 박스 스타일 정의 (Card Style) ---
+\newtcolorbox{cvsection}[1]{
+    breakable,
+    enhanced,
+    colback=white,
+    colframe=navyblue,
+    coltitle=white,
+    fonttitle=\Large,
+    title={#1},
+    arc=2mm,
+    boxrule=1pt,
+    left=4mm, right=4mm, top=3mm, bottom=3mm,
+    toptitle=2mm, bottomtitle=2mm,
+    after skip=1.2em
+}
+
+% --- 문서 시작 ---
+\begin{document}
+\pagestyle{empty}
+
+% ====================================================================
+% [문서 제목 추가]
+% ====================================================================
+\begin{center}
+    {\huge\bfseries 이 력 서}
+\end{center}
+\vspace{1em} % 제목과 본문 사이 간격
+
+% [중요] 패키지 로드 부분에 \usepackage{tabularx} 와 \usepackage{array} 가 있어야 합니다.
+
+% ====================================================================
+% [헤더 영역]
+% ====================================================================
+\noindent
+\begin{minipage}[c]{3.2cm}
+    \centering
+    \BLOCK{ if photo_path }
+        % 사진 테두리 (선택사항)
+        \setlength{\fboxsep}{0pt}
+        \setlength{\fboxrule}{0.5pt}
+        % [핵심] 너비 3cm, 높이 4cm로 강제 고정
+        \fbox{\includegraphics[width=3cm, height=4cm]{\VAR{photo_path}}}
+    \BLOCK{ else }
+        % 사진 없을 때 빈 박스도 3cm x 4cm
+        \framebox{\parbox[c][4cm][c]{3cm}{
+            \centering\small\color{gray}사진\\(3cm$\times$4cm)
+        }}
+    \BLOCK{ endif }
+\end{minipage}%
+\hfill
+% [오른쪽] 정보 테이블
+\begin{minipage}[c]{\dimexpr\textwidth-3.5cm\relax}
+    % [높이 맞춤 핵심]
+    % 사진 높이(4cm)에 맞추기 위해 행 높이를 2.2배로 설정 (4행 기준 약 4cm)
+    \renewcommand{\arraystretch}{2.2}
+    
+    % 세로 중앙 정렬(m) 및 가로 중앙 정렬(Y) 설정
+    \renewcommand{\tabularxcolumn}[1]{m{#1}}
+    \newcolumntype{Y}{>{\centering\arraybackslash}X}
+    
+    \begin{tabularx}{\linewidth}{|c|Y|c|Y|}
+        \hline
+        \textbf{성명} & \VAR{name} & \textbf{생년월일} & \VAR{birthdate} \\ \hline
+        % 주소: 긴 내용 줄바꿈 허용 (너비 9.5cm)
+        \textbf{주소} & \multicolumn{3}{>{\centering\arraybackslash}m{9.5cm}|}{\VAR{address}} \\ \hline
+        \textbf{연락처} & \VAR{phone} & \textbf{이메일} & \small \VAR{email} \\ \hline
+        \textbf{비상연락} & \multicolumn{3}{>{\centering\arraybackslash}m{9.5cm}|}{\VAR{emergency_contact}} \\ \hline
+    \end{tabularx}
+\end{minipage}
+% ====================================================================
+% [섹션 1: 핵심 역량]
+% ====================================================================
+%\begin{cvsection}{자기 소개}
+%    \begin{itemize}[leftmargin=*, noitemsep, topsep=0pt]
+%    \BLOCK{ for item in introduction }
+%        \item \VAR{item}
+%    \BLOCK{ endfor }
+%    \end{itemize}
+%\end{cvsection}
+% ====================================================================
+% [섹션 2: 경력 사항]
+% ====================================================================
+\begin{cvsection}{경력 사항}
+    \BLOCK{ for job in experience }
+    \noindent 
+    \begin{minipage}[t]{0.75\textwidth}
+        \textbf{\large \VAR{job.company}} \\
+        \textbf{\textit{\small \VAR{job.role}}}
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.20\textwidth}
+        \raggedleft
+        \textbf{\textit{\small \VAR{job.period}}} \\
+        \textbf{\textit{\small \VAR{job.location}}}
+    \end{minipage}
+
+    \vspace{0.5em}
+    \begin{itemize}[leftmargin=1.2em, itemsep=2pt, topsep=0pt]
+        \BLOCK{ for detail in job.details }
+        \item {\VAR{detail.title}}
+            \begin{itemize}[label=-, topsep=0pt]
+                \BLOCK{ for sub in detail.descriptions }
+                \item \VAR{sub}
+                \BLOCK{ endfor }
+            \end{itemize}
+        \BLOCK{ endfor }
+    \end{itemize}
+
+    \BLOCK{ if not loop.last }
+    \vspace{0.8em}
+    \hrule
+    \vspace{0.8em}
+    \BLOCK{ endif }
+    \BLOCK{ endfor }
+\end{cvsection}
+
+% ====================================================================
+% [섹션 3: 학력]
+% ====================================================================
+\begin{cvsection}{학력}
+    \BLOCK{ for edu in education }
+    \noindent \textbf{{\VAR{edu.institution}}} \hfill \textbf{\textit{\VAR{edu.period}}} \\
+    \textbf{\VAR{edu.degree}}
+    \BLOCK{ if not loop.last } \vspace{0.5em} \BLOCK{ endif }
+    \BLOCK{ endfor }
+\end{cvsection}
+
+% ====================================================================
+% [섹션 4: 자격증 및 어학
+% ====================================================================
+\begin{cvsection}{자격증 및 어학}
+    % [표 형태로 변경]
+    % 구조: 자격증명(6cm) | 세부내용(자동채움) | 날짜(우측정렬)
+    \renewcommand{\arraystretch}{2} % 행 간격 조절
+    \begin{tabularx}{\linewidth}{@{} p{6cm} X r @{}}
+    \BLOCK{ for cert in certifications }
+        \textbf{{\VAR{cert.title}}} & 
+        \BLOCK{ if cert.score }
+            \textbf{{\small \VAR{cert.score}}}
+        \BLOCK{ elif cert.issuer }
+            \textbf{{\small \VAR{cert.issuer}}}
+        \BLOCK{ endif }
+        & 
+        {\small\color{black}\textbf{\textit{\VAR{cert.date}}}} \\
+    \BLOCK{ endfor }
+    \end{tabularx}
+\end{cvsection}
+
+\end{document}
