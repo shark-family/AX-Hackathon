@@ -1,11 +1,14 @@
+import TypingIndicator from './TypingIndicator.tsx'
+
 type ChatBubbleProps = {
   sender: "interviewer" | "candidate"
   name: string
   message: string
   time?: string
+  pending?: boolean // 타이핑 인디케이터 표시 여부
 }
 
-export default function ChatBubble({ sender, name, message, time }: ChatBubbleProps) {
+export default function ChatBubble({ sender, name, message, time, pending }: ChatBubbleProps) {
   const isInterviewer = sender === "interviewer"
   return (
     <div className={`flex ${isInterviewer ? "justify-start" : "justify-end"}`}>
@@ -22,9 +25,9 @@ export default function ChatBubble({ sender, name, message, time }: ChatBubblePr
               isInterviewer ? "bg-white text-gray-800" : "bg-[#ffefe0] text-[#b15f2d]"
             }`}
           >
-            {message}
+            {pending ? <TypingIndicator /> : message}
           </div>
-          {time ? <span className="mt-1 text-[11px] text-gray-400">{time}</span> : null}
+          {time && !pending ? <span className="mt-1 text-[11px] text-gray-400">{time}</span> : null}
         </div>
       </div>
     </div>
