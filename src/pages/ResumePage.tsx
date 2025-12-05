@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useState } from "react"
-=======
 import { useState, useEffect } from "react"
->>>>>>> 90738f8 ([FEAT] 이력서-인터뷰 내용 API연결)
 import { useNavigate } from "react-router-dom"
 import Header from "../components/Header.tsx"
 import { useInterviewStore } from "../stores/interviewStore.ts"
@@ -51,9 +47,6 @@ export default function ResumePage() {
   const { resumePdfUrl, resumePdfBlob, summary } = useInterviewStore()
   const [selectedFormat, setSelectedFormat] = useState<"PDF" | "HWP" | "DOCX">("PDF")
   const [scale, setScale] = useState(1)
-<<<<<<< HEAD
-  const navigate = useNavigate()
-=======
   
   // PDF URL이 없으면 인터뷰 페이지로 리다이렉트
   useEffect(() => {
@@ -70,7 +63,6 @@ export default function ResumePage() {
       }
     }
   }, [resumePdfUrl])
->>>>>>> 90738f8 ([FEAT] 이력서-인터뷰 내용 API연결)
 
   const changeScale = (delta: number) => {
     setScale((prev) => Math.min(2, Math.max(0.6, parseFloat((prev + delta).toFixed(2)))))
