@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import ChatBubble from "../components/ChatBubble.tsx"
 import Header from "../components/Header.tsx"
 
@@ -27,6 +28,7 @@ const PenIcon = ({ className, color = "#c0c4cc" }: { className?: string; color?:
 )
 
 export default function InterviewPage() {
+  const navigate = useNavigate()
   const steps = ["기본 정보", "경력 사항", "개인의 강점", "희망 직무", "최종 확인"]
   const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState("")
@@ -236,6 +238,7 @@ export default function InterviewPage() {
             </div>
 
             <button
+              onClick={() => navigate("/resume")}
               className="mt-6 w-full rounded-full bg-[#ff9330] py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d]"
               style={{ boxShadow: "0 12px 28px rgba(255,147,48,0.28)" }}
             >
