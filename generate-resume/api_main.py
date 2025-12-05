@@ -9,8 +9,17 @@ from typing import Dict, Any
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Resume PDF Generator")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],      # 나중에 프론트 도메인만 넣고 싶으면 여기 수정
+    allow_credentials=True,
+    allow_methods=["*"],      # OPTIONS, POST 등 모두 허용
+    allow_headers=["*"],
+)
 
 # --- 설정 ---
 TEMPLATE_FILENAME = 'senior_template.tex'
@@ -73,6 +82,16 @@ async def generate_pdf_endpoint(request: ResumeData, background_tasks: Backgroun
             
             with open(output_tex, 'w', encoding='utf-8') as f:
                 f.write(rendered_tex)
+
+            # ⬇️ 여기 추가: 사진 파일을 임시 폴더로 복사
+            photo_path = request.data.get("photo_path")
+            if photo_path:
+                src = BASE_DIR / photo_path         # 예: generate-resume/senior_photo.png
+                dst = temp_dir / Path(photo_path).name  # 예: temp_jobs/<uuid>/senior_photo.png
+                if src.exists():
+                    shutil.copy(src, dst)
+                else:
+                    print(f"⚠️ 사진 파일을 찾을 수 없습니다: {src}")
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"템플릿 렌더링 실패: {str(e)}")
 

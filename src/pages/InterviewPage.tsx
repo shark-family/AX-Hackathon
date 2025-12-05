@@ -4,6 +4,9 @@ import ChatBubble from "../components/ChatBubble.tsx"
 import Header from "../components/Header.tsx"
 import SummaryPanel from "../components/SummaryPanel.tsx"
 import { useInterviewStore } from "../stores/interviewStore.ts"
+import { generateResumeData } from "../services/llmService.ts"
+import { generateResumePDF } from "../services/apiService.ts"
+import type { ResumeData } from "../types/resume.ts"
 
 const MicIcon = ({ className, color = "#8c9099" }: { className?: string; color?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6">
@@ -22,10 +25,11 @@ const SendIcon = ({ className, color = "#ffffff" }: { className?: string; color?
 
 export default function InterviewPage() {
   const navigate = useNavigate()
-  const { messages, addMessage, isLoadingSummary, isThinking, summary, hasFinishedInterview } = useInterviewStore()
+  const { messages, addMessage, isLoadingSummary, isThinking, summary, hasFinishedInterview, setResumePdfUrl } = useInterviewStore()
   const steps = ["기본 정보", "경력 사항", "개인의 강점", "희망 직무", "최종 확인"]
   const [inputValue, setInputValue] = useState("")
   const [displayName, setDisplayName] = useState("")
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false)
   const questionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const hasInitialMessage = useRef(false)
   const isSendingRef = useRef(false)
@@ -248,32 +252,69 @@ export default function InterviewPage() {
             <SummaryPanel />
             <button
               onClick={async () => {
-                // Zustand store의 summary를 JSON으로 백엔드에 전송
-                const summary = useInterviewStore.getState().summary
-                console.log("전송할 요약 데이터:", JSON.stringify(summary, null, 2))
+                if (isGeneratingResume) return
                 
-                // 백엔드 API 호출 (선택사항)
-                // try {
-                //   await submitInterviewSummary(summary)
-                // } catch (error) {
-                //   console.error("백엔드 전송 실패:", error)
-                // }
-                
-                navigate("/resume")
+                setIsGeneratingResume(true)
+                try {
+                  const currentSummary = useInterviewStore.getState().summary
+                  const currentMessages = useInterviewStore.getState().messages
+                  
+                  // 기본값 설정 (하드코딩)
+                  const defaultResumeData: Partial<ResumeData> = {
+                    name: currentSummary.name || "지원자",
+                    birthdate: "1966년 3월 24일",
+                    address: "서울특별시 중구 퇴계로 190 (필동1가)",
+                    photo_path: "senior_photo.png",
+                    phone: "010-2000-2000",
+                    email: "sciver@mk.co.kr",
+                    emergency_contact: "(관계: 배우자) 010-2000-2114",
+                    education: [],
+                    experience: [],
+                    certifications: [],
+                  }
+                  
+                  // 인터뷰 내용을 이력서 JSON으로 변환
+                  console.log("이력서 데이터 생성 중...")
+                  const resumeData = await generateResumeData(
+                    currentMessages,
+                    currentSummary,
+                    defaultResumeData
+                  )
+                  
+                  console.log("생성된 이력서 데이터:", resumeData)
+                  
+                  // PDF 생성
+                  console.log("PDF 생성 중...")
+                  const pdfBlob = await generateResumePDF(resumeData)
+                  
+                  // Blob을 URL로 변환하여 저장
+                  const pdfUrl = URL.createObjectURL(pdfBlob)
+                  setResumePdfUrl(pdfUrl)
+                  
+                  console.log("PDF 생성 완료!")
+                  
+                  // ResumePage로 이동
+                  navigate("/resume")
+                } catch (error) {
+                  console.error("이력서 생성 실패:", error)
+                  alert("이력서 생성 중 오류가 발생했습니다. 다시 시도해주세요.")
+                } finally {
+                  setIsGeneratingResume(false)
+                }
               }}
-              disabled={currentStep < steps.length - 1}
+              disabled={currentStep < steps.length - 1 || isGeneratingResume}
               className={`mt-6 w-full rounded-full py-3 text-center text-sm font-semibold text-white shadow-sm transition ${
-                currentStep < steps.length - 1
+                currentStep < steps.length - 1 || isGeneratingResume
                   ? "bg-gray-300 cursor-not-allowed"
                   : "bg-[#ff9330] hover:bg-[#f5851d]"
               }`}
               style={
-                currentStep >= steps.length - 1
+                currentStep >= steps.length - 1 && !isGeneratingResume
                   ? { boxShadow: "0 12px 28px rgba(255,147,48,0.28)" }
                   : {}
               }
             >
-              다음 단계로
+              {isGeneratingResume ? "이력서 생성 중..." : "다음 단계로"}
             </button>
           </div>
         </div>

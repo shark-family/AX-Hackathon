@@ -12,10 +12,12 @@ interface InterviewState {
   error: string | null
   totalQuestions: number // 총 질문 수 (외부에서 설정)
   hasFinishedInterview: boolean // 인터뷰 종료 플래그
+  resumePdfUrl: string | null // 생성된 이력서 PDF URL
 
   addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt' | 'pending'>) => Promise<void>
   addClosingMessage: () => void // 마지막 감사 메시지 추가
   updateSummary: () => Promise<void>
+  setResumePdfUrl: (url: string | null) => void // PDF URL 설정
   reset: () => void
 }
 
@@ -27,6 +29,7 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
   error: null,
   totalQuestions: 5, // 기본값, InterviewPage에서 설정
   hasFinishedInterview: false,
+  resumePdfUrl: null,
 
   addMessage: async (msg) => {
     // 중복 메시지 체크: 동일한 내용의 메시지가 최근에 추가되었는지 확인
@@ -139,6 +142,10 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
     }
   },
 
+  setResumePdfUrl: (url: string | null) => {
+    set({ resumePdfUrl: url })
+  },
+
   reset: () => {
     set({
       messages: [],
@@ -147,6 +154,7 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
       isThinking: false,
       error: null,
       hasFinishedInterview: false,
+      resumePdfUrl: null,
     })
   },
 }))

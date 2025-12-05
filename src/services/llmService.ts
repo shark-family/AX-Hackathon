@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import type { ChatMessage, InterviewSummary } from '../types/interview'
+import type { ResumeData } from '../types/resume'
 
 const apiKey = import.meta.env.VITE_OPENAI_API_KEY
 
@@ -147,6 +148,160 @@ export async function extractInterviewSummary(
     return result
   } catch (error) {
     console.error('LLM 호출 중 에러 발생:', error)
+    throw error
+  }
+}
+
+const RESUME_SYSTEM_PROMPT = `당신은 인터뷰 내용을 바탕으로 이력서용 JSON 데이터를 생성하는 전문 어시스턴트입니다.
+
+**역할:**
+- 인터뷰 대화 내용에서 지원자의 정보를 추출하여 이력서 JSON 형식으로 변환합니다.
+- 인터뷰에서 알 수 없는 정보는 제공된 기본값을 사용합니다.
+- 경력, 학력, 자격증 정보를 구조화된 형식으로 변환합니다.
+
+**출력 형식:**
+다음 JSON 구조를 따라야 합니다:
+{
+  "name": "이름",
+  "birthdate": "생년월일 (예: 1966년 3월 24일)",
+  "address": "주소",
+  "photo_path": "senior_photo.png",
+  "phone": "전화번호",
+  "email": "이메일",
+  "emergency_contact": "비상연락처 (관계 포함)",
+  "education": [
+    {
+      "institution": "학교명",
+      "degree": "전공 (선택사항)",
+      "period": "기간 (예: 1982.03 -- 1985.02)"
+    }
+  ],
+  "experience": [
+    {
+      "company": "회사명",
+      "role": "직책/역할",
+      "period": "기간 (예: 1991.03 -- 2001.02)",
+      "location": "근무지역"
+    }
+  ],
+  "certifications": [
+    {
+      "title": "자격증명",
+      "issuer": "발급기관 (선택사항)",
+      "score": "점수 (선택사항, 예: 650점)",
+      "date": "취득일 (예: 2023.12)"
+    }
+  ]
+}
+
+**규칙:**
+1. 인터뷰에서 추출할 수 있는 정보만 사용하고, 없는 정보는 기본값을 사용합니다.
+2. 경력(experience):
+   - previousCompany와 previousJobTitle이 있으면 이를 기반으로 experience 배열을 생성합니다.
+   - 경력이 없으면 빈 배열 []로 둡니다.
+   - period는 인터뷰에서 언급된 기간을 사용하고, 없으면 적절히 추정합니다 (예: "1991.03 -- 2001.02").
+   - location은 인터뷰에서 언급된 지역을 사용하고, 없으면 "서울 지역" 또는 "서울 본사" 등으로 설정합니다.
+   - role은 previousJobTitle을 사용하고, 없으면 인터뷰 내용에서 추론합니다.
+3. 자격증(certifications):
+   - certificates 배열에 있는 자격증명을 기반으로 생성합니다.
+   - 자격증이 없으면 빈 배열 []로 둡니다.
+   - date는 인터뷰에서 언급된 취득일을 사용하고, 없으면 적절히 추정합니다 (예: "2023.12").
+   - issuer는 자격증명에서 추론 가능한 경우에만 포함합니다 (예: "정보처리기사" → "한국산업인력공단").
+4. 학력(education):
+   - 인터뷰에서 언급된 경우에만 포함하고, 없으면 빈 배열 []로 둡니다.
+   - period 형식은 "YYYY.MM -- YYYY.MM" 형식을 따릅니다.
+5. 날짜 형식:
+   - 기간: "YYYY.MM -- YYYY.MM" (예: "1991.03 -- 2001.02")
+   - 단일 날짜: "YYYY.MM" (예: "2023.12")
+6. 모든 필수 필드(name, birthdate, address 등)는 반드시 채워야 하며, 기본값이 제공됩니다.`
+
+/**
+ * 인터뷰 내용과 요약을 바탕으로 이력서용 JSON 데이터를 생성합니다.
+ */
+export async function generateResumeData(
+  messages: ChatMessage[],
+  summary: InterviewSummary,
+  defaultData: Partial<ResumeData>
+): Promise<ResumeData> {
+  try {
+    // 대화 내용을 프롬프트로 변환
+    const conversationText = messages
+      .map((msg) => {
+        const roleLabel = msg.role === 'assistant' ? '메일이' : '지원자'
+        return `${roleLabel}: ${msg.content}`
+      })
+      .join('\n')
+
+    const userPrompt = `다음은 인터뷰 대화 내용과 추출된 요약 정보입니다.
+
+**인터뷰 대화:**
+${conversationText}
+
+**추출된 요약 정보:**
+- 이름: ${summary.name || '알 수 없음'}
+- 이전 회사: ${summary.previousCompany || '없음'}
+- 이전 직무: ${summary.previousJobTitle || '없음'}
+- 기술: ${summary.skills.join(', ') || '없음'}
+- 자격증: ${summary.certificates.join(', ') || '없음'}
+- 성과: ${summary.achievements.join(', ') || '없음'}
+
+**기본값 (인터뷰에서 알 수 없는 정보):**
+${JSON.stringify(defaultData, null, 2)}
+
+위 정보를 바탕으로 이력서 JSON을 생성하세요. 인터뷰에서 알 수 없는 정보는 기본값을 사용하세요.`
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: RESUME_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('LLM 응답이 비어있습니다.')
+    }
+
+    // JSON 파싱
+    let parsed: Partial<ResumeData>
+    try {
+      parsed = JSON.parse(content)
+    } catch (parseError) {
+      console.error('JSON 파싱 실패:', parseError)
+      console.error('원본 응답:', content)
+      throw new Error('LLM 응답을 JSON으로 파싱할 수 없습니다.')
+    }
+
+    // 기본값과 병합하여 완전한 ResumeData 생성
+    const result: ResumeData = {
+      name: parsed.name || defaultData.name || '지원자',
+      birthdate: parsed.birthdate || defaultData.birthdate || '',
+      address: parsed.address || defaultData.address || '',
+      photo_path: parsed.photo_path || defaultData.photo_path || 'senior_photo.png',
+      phone: parsed.phone || defaultData.phone || '',
+      email: parsed.email || defaultData.email || '',
+      emergency_contact: parsed.emergency_contact || defaultData.emergency_contact || '',
+      education: Array.isArray(parsed.education) ? parsed.education : (defaultData.education || []),
+      experience: Array.isArray(parsed.experience) ? parsed.experience : (defaultData.experience || []),
+      certifications: Array.isArray(parsed.certifications) ? parsed.certifications : (defaultData.certifications || []),
+    }
+
+    // 경력이 없는 경우 빈 배열로 설정
+    if (!summary.previousCompany && !summary.previousJobTitle) {
+      result.experience = []
+    }
+
+    // 자격증이 없는 경우 빈 배열로 설정
+    if (!summary.certificates || summary.certificates.length === 0) {
+      result.certifications = []
+    }
+
+    return result
+  } catch (error) {
+    console.error('이력서 데이터 생성 중 에러 발생:', error)
     throw error
   }
 }

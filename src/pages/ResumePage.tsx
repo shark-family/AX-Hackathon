@@ -1,6 +1,11 @@
+<<<<<<< HEAD
 import { useState } from "react"
+=======
+import { useState, useEffect } from "react"
+>>>>>>> 90738f8 ([FEAT] 이력서-인터뷰 내용 API연결)
 import { useNavigate } from "react-router-dom"
 import Header from "../components/Header.tsx"
+import { useInterviewStore } from "../stores/interviewStore.ts"
 
 const DownloadIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -42,23 +47,70 @@ const BriefcaseIcon = ({ className }: { className?: string }) => (
 )
 
 export default function ResumePage() {
+  const navigate = useNavigate()
+  const { resumePdfUrl, summary } = useInterviewStore()
   const [selectedFormat, setSelectedFormat] = useState<"PDF" | "HWP" | "DOCX">("PDF")
   const [scale, setScale] = useState(1)
+<<<<<<< HEAD
   const navigate = useNavigate()
+=======
+  
+  // PDF URL이 없으면 인터뷰 페이지로 리다이렉트
+  useEffect(() => {
+    if (!resumePdfUrl) {
+      navigate("/interview")
+    }
+  }, [resumePdfUrl, navigate])
+  
+  // 컴포넌트 언마운트 시 URL 해제
+  useEffect(() => {
+    return () => {
+      if (resumePdfUrl) {
+        URL.revokeObjectURL(resumePdfUrl)
+      }
+    }
+  }, [resumePdfUrl])
+>>>>>>> 90738f8 ([FEAT] 이력서-인터뷰 내용 API연결)
 
   const changeScale = (delta: number) => {
     setScale((prev) => Math.min(2, Math.max(0.6, parseFloat((prev + delta).toFixed(2)))))
   }
 
-  const handleDownload = () => {
-    const link = document.createElement("a")
-    link.href = "/output_resume.pdf"
-    link.download = "output_resume.pdf"
-    link.target = "_blank"
-    link.rel = "noopener"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const handleDownload = async () => {
+    if (!resumePdfUrl) return
+    
+    try {
+      // Blob URL에서 Blob을 가져옴
+      const response = await fetch(resumePdfUrl)
+      if (!response.ok) {
+        throw new Error('PDF 다운로드 실패')
+      }
+      
+      const blob = await response.blob()
+      
+      // Blob을 다운로드
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `resume_${summary.name || "지원자"}.pdf`
+      link.style.display = "none"
+      
+      document.body.appendChild(link)
+      link.click()
+      
+      // 정리
+      setTimeout(() => {
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }, 100)
+    } catch (error) {
+      console.error('다운로드 실패:', error)
+      alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
+    }
+  }
+  
+  if (!resumePdfUrl) {
+    return null // 리다이렉트 중
   }
 
   return (
@@ -70,7 +122,7 @@ export default function ResumePage() {
           {/* Left Panel - Resume Preview */}
           <div className="rounded-3xl bg-[#f5e6d3] p-8 shadow-sm">
             <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">김매일님의 이력서</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{summary.name || "지원자"}님의 이력서</h1>
               <p className="mt-2 text-sm text-gray-600">
                 완성된 문서를 확인하고, 원하는 파일 형식으로 다운로드하세요.
               </p>
@@ -108,7 +160,7 @@ export default function ResumePage() {
                   }}
                 >
                   <object
-                    data="/output_resume.pdf#toolbar=0"
+                    data={`${resumePdfUrl}#toolbar=0`}
                     type="application/pdf"
                     className="h-[1200px] w-full"
                   >
