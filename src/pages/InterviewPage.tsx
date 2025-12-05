@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import ChatBubble from "../components/ChatBubble.tsx"
 import Header from "../components/Header.tsx"
-
-type Message = { sender: "interviewer" | "candidate"; text: string; step: number }
+import SummaryPanel from "../components/SummaryPanel.tsx"
+import { useInterviewStore } from "../stores/interviewStore.ts"
 
 const MicIcon = ({ className, color = "#8c9099" }: { className?: string; color?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6">
@@ -20,157 +20,132 @@ const SendIcon = ({ className, color = "#ffffff" }: { className?: string; color?
   </svg>
 )
 
-const PenIcon = ({ className, color = "#c0c4cc" }: { className?: string; color?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.6">
-    <path d="m12.7 5.3 4 4L8 18H4v-4l8.7-8.7Z" />
-    <path d="m14.5 3.5 2 2" />
-  </svg>
-)
-
 export default function InterviewPage() {
   const navigate = useNavigate()
+  const { messages, addMessage, isLoadingSummary, isThinking, summary, hasFinishedInterview } = useInterviewStore()
   const steps = ["기본 정보", "경력 사항", "개인의 강점", "희망 직무", "최종 확인"]
-  const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState("")
   const [displayName, setDisplayName] = useState("")
-  const [companyName, setCompanyName] = useState("")
-  const [answers, setAnswers] = useState({
-    basic: "",
-    career: "",
-    strength: "",
-    role: "",
-  })
-  const [messages, setMessages] = useState<Message[]>([])
+  const questionTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasInitialMessage = useRef(false)
+  const isSendingRef = useRef(false)
 
+  // Store에 총 질문 수 설정
+  useEffect(() => {
+    useInterviewStore.setState({ totalQuestions: steps.length })
+  }, [steps.length])
+
+  // 사용자 메시지 수에 따라 currentStep 계산
+  const userMessages = messages.filter((m) => m.role === "user")
+  const currentStep = Math.min(userMessages.length, steps.length - 1)
   const progressPercent = ((currentStep + 1) / steps.length) * 100
 
-  const extractNameAndCompany = (text: string) => {
-    // 쉼표로 구분된 경우: "김매경, 삼성" -> 첫 번째는 이름, 두 번째는 회사
-    if (text.includes(",")) {
-      const parts = text.split(",").map((p) => p.trim())
-      if (parts.length >= 2) {
-        const name = parts[0].replace(/^(제|저는|저)\s*이름은?\s*/i, "").trim()
-        const company = parts[1].replace(/^(지원|회사|희망|직무)\s*(?:은|는|이|가)?\s*/i, "").trim()
-        if (name && /^[가-힣]{2,}$/.test(name)) {
-          return { name, company: company || "" }
-        }
-      }
-    }
-
-    // 이름 먼저 찾기 (한글 이름 패턴: 성씨 + 이름)
-    const namePatterns = [
-      /(?:이름은|이름이|제\s*이름은|이름|저는|저)\s*([가-힣]{2,4})/,
-      /^([가-힣]{2,4})(?:\s|,|$)/, // 시작 부분의 한글 이름
-    ]
-    
-    let foundName = ""
-    for (const pattern of namePatterns) {
-      const match = text.match(pattern)
-      if (match?.[1] && /^[가-힣]{2,4}$/.test(match[1])) {
-        foundName = match[1]
-        break
-      }
-    }
-
-    // 이름을 제외한 나머지 텍스트에서 회사 찾기
-    const remainingText = foundName ? text.replace(foundName, "").trim() : text
-    
-    // 회사명 패턴
-    const companyPatterns = [
-      /(?:지원|회사|희망|원하시는\s*회사|지원을\s*원하시는\s*회사|직무)\s*(?:은|는|이|가)?\s*([가-힣A-Za-z]+)/,
-      /([가-힣]{2,}(?:경제|전자|기업|그룹|회사|은행|증권|보험))/,
-    ]
-    
-    let foundCompany = ""
-    for (const pattern of companyPatterns) {
-      const match = remainingText.match(pattern)
-      if (match?.[1] && match[1].length >= 2) {
-        foundCompany = match[1]
-        break
-      }
-    }
-    
-    // 회사명 키워드 직접 검색
-    if (!foundCompany) {
-      const companyKeywords = ["매일경제", "매경", "삼성", "LG", "SK", "현대", "네이버", "카카오", "KT", "롯데"]
-      for (const keyword of companyKeywords) {
-        if (remainingText.includes(keyword)) {
-          foundCompany = keyword === "매경" ? "매일경제" : keyword
-          break
-        }
-      }
-    }
-    
-    return { name: foundName || "", company: foundCompany || "" }
-  }
-
   const getPromptForStep = (step: number) => {
-    const name = displayName || "지원자님"
+    const name = summary.name || displayName || "지원자님"
     if (step === 0)
       return "안녕하세요! 인터뷰를 시작하겠습니다. 먼저 성함과 지원을 원하시는 회사 및 직무를 말씀해주시겠어요?"
     if (step === 1) return "이전에는 어떤 회사에서 업무를 하셨나요? 또, 어떤 성과를 내셨나요?"
     if (step === 2)
       return `${name}님은 어떤 기술을 가장 잘 활용하시나요? 또는 어떤 부분에서 강점을 갖고 계신가요? 관련 수상이나 자격증도 어필해주세요!`
     if (step === 3) {
-      const careerText = answers.career || name
-      return `${careerText}에서 무슨 일을 하고 싶으세요? 구체적으로 말씀해주시면 보다 구체적인 피드백이 가능합니다!`
+      // 희망 직무 질문: 첫 번째 답변에서 말한 희망 회사/직무를 기준으로 질문 생성
+      const targetCompany = summary.targetCompany
+      const targetJobTitle = summary.targetJobTitle
+      const questionText = targetCompany && targetJobTitle
+        ? `${targetCompany} ${targetJobTitle}`
+        : targetCompany || targetJobTitle || name
+      return `${questionText}에서 무슨 일을 하고 싶으세요? 구체적으로 말씀해주시면 보다 구체적인 피드백이 가능합니다!`
     }
     return ""
   }
 
+  // 초기 메시지 추가 (한 번만)
   useEffect(() => {
-    setMessages([{ sender: "interviewer", text: getPromptForStep(0), step: 0 }])
+    if (!hasInitialMessage.current) {
+      const assistantMessages = messages.filter((m) => m.role === "assistant")
+      if (assistantMessages.length === 0 && messages.length === 0) {
+        hasInitialMessage.current = true
+        addMessage({
+          role: "assistant",
+          content: getPromptForStep(0),
+        })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSend = () => {
-    const trimmed = inputValue.trim()
-    if (!trimmed) return
-
-    const stepKeyMap: Record<number, keyof typeof answers> = {
-      0: "basic",
-      1: "career",
-      2: "strength",
-      3: "role",
-      4: "role",
+  // 요약 완료 후 다음 질문 생성
+  useEffect(() => {
+    // 인터뷰가 종료되었으면 더 이상 질문 생성하지 않음
+    if (hasFinishedInterview) {
+      return
     }
 
-    if (currentStep === 0) {
-      const { name, company } = extractNameAndCompany(trimmed)
-      if (name) setDisplayName(name)
-      if (company) setCompanyName(company)
+    // 기존 타이머 정리
+    if (questionTimeoutRef.current) {
+      clearTimeout(questionTimeoutRef.current)
+      questionTimeoutRef.current = null
     }
 
-    setAnswers((prev) => ({ ...prev, [stepKeyMap[currentStep]]: trimmed }))
-    setMessages((prev) => {
-      const userAdded: Message[] = [...prev, { sender: "candidate", text: trimmed, step: currentStep }]
-      const closing = "감사합니다! 이제 우측 다음 단계를 눌러서 완성된 이력서를 확인하세요!"
-
-      if (currentStep === steps.length - 2) {
-        const alreadySent = prev.some(
-          (m) => m.sender === "interviewer" && m.text === closing && m.step === currentStep + 1,
-        )
-        return alreadySent
-          ? userAdded
-          : [...userAdded, { sender: "interviewer", text: closing, step: currentStep + 1 }]
-      }
-
-      if (currentStep >= steps.length - 1) {
-        const alreadySent = prev.some(
-          (m) => m.sender === "interviewer" && m.text === closing && m.step === currentStep,
-        )
-        return alreadySent ? userAdded : [...userAdded, { sender: "interviewer", text: closing, step: currentStep }]
-      }
-
-      const nextStep = currentStep + 1
+    const assistantMessages = messages.filter((m) => m.role === "assistant")
+    
+    // 조건: 요약 완료, 타이핑 중이 아님, 사용자 답변이 있고, 다음 질문이 아직 없음
+    if (
+      !isLoadingSummary &&
+      !isThinking &&
+      userMessages.length > 0 &&
+      userMessages.length < steps.length &&
+      assistantMessages.length <= userMessages.length // 질문 수가 답변 수와 같거나 작아야 함
+    ) {
+      const nextStep = userMessages.length
       const nextPrompt = getPromptForStep(nextStep)
-      return nextPrompt
-        ? [...userAdded, { sender: "interviewer", text: nextPrompt, step: nextStep }]
-        : userAdded
-    })
-    setInputValue("")
+      
+      if (nextPrompt) {
+        // 약간의 딜레이를 두어 자연스러운 흐름 생성
+        questionTimeoutRef.current = setTimeout(() => {
+          addMessage({
+            role: "assistant",
+            content: nextPrompt,
+          })
+          questionTimeoutRef.current = null
+        }, 500)
+      }
+    }
 
-    if (currentStep < steps.length - 1) {
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1))
+    // Cleanup 함수
+    return () => {
+      if (questionTimeoutRef.current) {
+        clearTimeout(questionTimeoutRef.current)
+      }
+    }
+  }, [isLoadingSummary, isThinking, messages, userMessages.length, summary, steps.length, addMessage, hasFinishedInterview])
+
+
+  const handleSend = async () => {
+    const trimmed = inputValue.trim()
+    if (!trimmed || isLoadingSummary || isThinking || isSendingRef.current) return
+
+    // 중복 전송 방지
+    isSendingRef.current = true
+
+    try {
+      // 이름 추출 (간단한 파싱, LLM이 더 정확하게 추출함)
+      const nameMatch = trimmed.match(/(?:이름은|이름이|제\s*이름은|저는|저)\s*([가-힣]{2,4})/)
+      if (nameMatch?.[1] && !displayName) {
+        setDisplayName(nameMatch[1])
+      }
+
+      // 입력창 비우기 (Optimistic UI)
+      setInputValue("")
+
+      // Zustand store에 사용자 메시지 추가 (한 번만)
+      // addMessage 내부에서 isThinking 상태가 true로 설정되고 요약이 시작됨
+      await addMessage({
+        role: "user",
+        content: trimmed,
+      })
+    } finally {
+      isSendingRef.current = false
     }
   }
 
@@ -219,26 +194,36 @@ export default function InterviewPage() {
         <div className="mt-6 grid grid-cols-[2fr_0.95fr] gap-5">
           <div className="rounded-2xl bg-white p-6 shadow-sm">
             <div className="space-y-6">
-              {messages.map((msg, idx) => (
+              {messages.map((msg) => (
                 <ChatBubble
-                  key={`${msg.step}-${idx}-${msg.sender}`}
-                  sender={msg.sender}
-                  name={msg.sender === "interviewer" ? "매일이" : displayName}
-                  message={msg.text}
+                  key={msg.id}
+                  sender={msg.role === "assistant" ? "interviewer" : "candidate"}
+                  name={msg.role === "assistant" ? "매일이" : displayName || "지원자"}
+                  message={msg.content}
                 />
               ))}
+              {/* 타이핑 인디케이터는 messages 배열과 분리하여 별도로 렌더링 */}
+              {isThinking && (
+                <ChatBubble
+                  sender="interviewer"
+                  name="매일이"
+                  message=""
+                  pending={true}
+                />
+              )}
             </div>
 
             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
               <input
-                className="flex-1 border-none text-sm outline-none placeholder:text-gray-400"
+                className="flex-1 border-none text-sm outline-none placeholder:text-gray-400 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="답변을 입력하세요."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                disabled={isLoadingSummary || isThinking}
                 onKeyDown={(e) => {
                   const nativeEvent = e.nativeEvent as KeyboardEvent
                   if (nativeEvent.isComposing) return
-                  if (e.key === "Enter") {
+                  if (e.key === "Enter" && !isLoadingSummary && !isThinking) {
                     e.preventDefault()
                     handleSend()
                   }
@@ -249,7 +234,8 @@ export default function InterviewPage() {
               </button>
               <button
                 onClick={handleSend}
-                className="flex items-center gap-2 rounded-full bg-[#ff9330] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d]"
+                disabled={isLoadingSummary || isThinking || !inputValue.trim()}
+                className="flex items-center gap-2 rounded-full bg-[#ff9330] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d] disabled:opacity-50 disabled:cursor-not-allowed transition"
                 style={{ boxShadow: "0 8px 24px rgba(255,147,48,0.28)" }}
               >
                 <SendIcon className="h-4 w-4" />
@@ -258,46 +244,23 @@ export default function InterviewPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-800">실시간 요약 정보</h3>
-              <button className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700">
-                <PenIcon className="h-4 w-4" />
-                수정
-              </button>
-            </div>
-
-            <div className="mt-6 space-y-5 text-sm text-gray-600">
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-gray-500">기본 정보</div>
-                <div className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500">이름</span>
-                      <span className="font-medium text-gray-800">
-                        {displayName || "입력 없음"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-gray-500">지원회사</span>
-                      <span className="font-medium text-gray-800">
-                        {companyName || "입력 없음"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-gray-500">주요경력</div>
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 whitespace-pre-line">
-                  {answers.career || "아직 입력된 정보가 없습니다."}
-                </div>
-              </div>
-            </div>
-
+          <div className="space-y-6">
+            <SummaryPanel />
             <button
-              onClick={() => navigate("/resume")}
+              onClick={async () => {
+                // Zustand store의 summary를 JSON으로 백엔드에 전송
+                const summary = useInterviewStore.getState().summary
+                console.log("전송할 요약 데이터:", JSON.stringify(summary, null, 2))
+                
+                // 백엔드 API 호출 (선택사항)
+                // try {
+                //   await submitInterviewSummary(summary)
+                // } catch (error) {
+                //   console.error("백엔드 전송 실패:", error)
+                // }
+                
+                navigate("/resume")
+              }}
               disabled={currentStep < steps.length - 1}
               className={`mt-6 w-full rounded-full py-3 text-center text-sm font-semibold text-white shadow-sm transition ${
                 currentStep < steps.length - 1
@@ -318,4 +281,3 @@ export default function InterviewPage() {
     </div>
   )
 }
-

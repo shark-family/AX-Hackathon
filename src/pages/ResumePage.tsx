@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import Header from "../components/Header.tsx"
 
 const DownloadIcon = ({ className }: { className?: string }) => (
@@ -33,9 +34,17 @@ const InfoIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const BriefcaseIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+  </svg>
+)
+
 export default function ResumePage() {
   const [selectedFormat, setSelectedFormat] = useState<"PDF" | "HWP" | "DOCX">("PDF")
   const [scale, setScale] = useState(1)
+  const navigate = useNavigate()
 
   const changeScale = (delta: number) => {
     setScale((prev) => Math.min(2, Math.max(0.6, parseFloat((prev + delta).toFixed(2)))))
@@ -162,6 +171,15 @@ export default function ResumePage() {
                 </button>
               </div>
             </div>
+
+            {/* Company Report Button */}
+            <button
+              onClick={() => navigate("/company-report")}
+              className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff9330] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d] transition"
+            >
+              <BriefcaseIcon className="h-5 w-5" />
+              기업 레포트 보기
+            </button>
 
             {/* Info */}
             <div className="flex items-start gap-3 rounded-xl bg-blue-50 p-4">
