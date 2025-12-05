@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   HiBuildingOffice2,
@@ -24,6 +25,11 @@ const Section = ({ icon, title, children }: { icon: React.ReactNode; title: stri
 export default function CompanyReportPage() {
   const navigate = useNavigate()
   const { reportData } = useInterviewStore()
+
+  useEffect(() => {
+    console.log("CompanyReportPage: reportData received", reportData)
+    console.assert(reportData !== null, "reportData should not be null")
+  }, [reportData])
 
   if (!reportData) {
     return (
