@@ -35,3 +35,53 @@ export const defaultSummary: InterviewSummary = {
   headline: '',
 }
 
+export interface CompanyInfo {
+  title: string;
+  content: string;
+}
+
+export interface FinancialStatus {
+  title: string;
+  content: string;
+}
+
+export interface Trends {
+  title: string;
+  content: string;
+}
+
+export interface JobAnalysis {
+  title: string;
+  overview: string;
+  main_tasks: string[];
+  required_skills: string[];
+  career_path: string[];
+}
+
+export interface SeniorFit {
+  title: string;
+  strengths: string;
+  key_challenges: string;
+}
+
+export interface CoachTip {
+  title: string;
+  content: string;
+}
+
+export interface RelatedNews {
+  title: string;
+  url: string;
+  source: string;
+  reason: string;
+}
+
+export interface ReportData {
+  company_info: CompanyInfo;
+  financial_status: FinancialStatus;
+  trends: Trends;
+  job_analysis: JobAnalysis;
+  senior_fit: SeniorFit;
+  coach_tip: CoachTip;
+  related_news: RelatedNews[];
+}

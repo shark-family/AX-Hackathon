@@ -253,10 +253,36 @@ export default function InterviewPage() {
             <button
               onClick={async () => {
                 if (isGeneratingResume) return
+
+                const currentSummary = useInterviewStore.getState().summary
+                try {
+                  const response = await fetch("http://localhost:8000/analyze", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      company_name: currentSummary.targetCompany,
+                      job_role: currentSummary.targetJobTitle,
+                      skills: currentSummary.skills,
+                      experiences: currentSummary.achievements,
+                    }),
+                  })
+
+                  if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`)
+                  }
+
+                  const result = await response.json()
+                  console.log("Analyze API response:", result)
+                  useInterviewStore.getState().setReportData(result)
+                } catch (error) {
+                  console.error("Failed to call analyze API:", error)
+                  // You might want to show an alert to the user here
+                }
                 
                 setIsGeneratingResume(true)
                 try {
-                  const currentSummary = useInterviewStore.getState().summary
                   const currentMessages = useInterviewStore.getState().messages
                   
                   // 기본값 설정 (예시 데이터)
