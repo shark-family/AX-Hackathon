@@ -25,13 +25,18 @@ const Section = ({ icon, title, children }: { icon: React.ReactNode; title: stri
 export default function CompanyReportPage() {
   const navigate = useNavigate()
   const { reportData, summary, setReportData } = useInterviewStore()
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!reportData)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      // 데이터가 이미 있으면 다시 호출하지 않음
       if (reportData) {
+        setIsLoading(false)
+        return
+      }
+      
+      if (!summary.targetCompany || !summary.targetJobTitle) {
+        setError("인터뷰 데이터가 부족하여 리포트를 생성할 수 없습니다.")
         setIsLoading(false)
         return
       }
@@ -56,11 +61,7 @@ export default function CompanyReportPage() {
         }
 
         const result = await response.json()
-        console.log("Analyze API response:", result)
-        console.assert(result !== null && typeof result === 'object', "Analyze API result should be a non-null object")
         setReportData(result)
-        console.log("Report data in store:", useInterviewStore.getState().reportData)
-        console.assert(useInterviewStore.getState().reportData !== null, "Report data should be stored in Zustand")
       } catch (err) {
         console.error("Failed to call analyze API:", err)
         setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.")
@@ -70,7 +71,7 @@ export default function CompanyReportPage() {
     }
 
     fetchData()
-  }, [reportData, setReportData, summary])
+  }, [summary, reportData, setReportData])
 
   if (isLoading) {
     return (
@@ -117,7 +118,7 @@ export default function CompanyReportPage() {
           <header className="rounded-2xl bg-white p-8 text-center shadow-lg">
             <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">기업 및 직무 분석</h1>
             <p className="mt-4 text-xl font-semibold text-[#ff9330]">
-              {reportData.company_info.content.split(' ')[0]} - {reportData.job_analysis.title}
+              {summary.targetCompany} - {summary.targetJobTitle}
             </p>
           </header>
 
