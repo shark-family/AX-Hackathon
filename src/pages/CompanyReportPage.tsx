@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   HiBuildingOffice2,
@@ -24,17 +24,74 @@ const Section = ({ icon, title, children }: { icon: React.ReactNode; title: stri
 
 export default function CompanyReportPage() {
   const navigate = useNavigate()
-  const { reportData } = useInterviewStore()
+  const { reportData, summary, setReportData } = useInterviewStore()
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    console.log("CompanyReportPage: reportData received", reportData)
-    console.assert(reportData !== null, "reportData should not be null")
-  }, [reportData])
+    const fetchData = async () => {
+      // 데이터가 이미 있으면 다시 호출하지 않음
+      if (reportData) {
+        setIsLoading(false)
+        return
+      }
 
-  if (!reportData) {
+      try {
+        console.log("request 데이터: ", summary);
+        const response = await fetch("http://localhost:8000/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            company_name: summary.targetCompany,
+            job_role: summary.targetJobTitle,
+            skills: summary.skills,
+            experiences: summary.achievements,
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+        console.log("Analyze API response:", result)
+        console.assert(result !== null && typeof result === 'object', "Analyze API result should be a non-null object")
+        setReportData(result)
+        console.log("Report data in store:", useInterviewStore.getState().reportData)
+        console.assert(useInterviewStore.getState().reportData !== null, "Report data should be stored in Zustand")
+      } catch (err) {
+        console.error("Failed to call analyze API:", err)
+        setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [reportData, setReportData, summary])
+
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">
         <p className="text-lg text-gray-600">리포트 데이터를 불러오는 중입니다...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">
+        <p className="text-lg text-red-600">오류: {error}</p>
+      </div>
+    )
+  }
+  
+  if (!reportData) {
+    return (
+      <div className="min-h-screen bg-gray-50 text-gray-900 flex items-center justify-center">
+        <p className="text-lg text-gray-600">리포트 데이터가 없습니다.</p>
       </div>
     )
   }
