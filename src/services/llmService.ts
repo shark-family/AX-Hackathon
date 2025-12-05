@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import type { ChatMessage, InterviewSummary } from '../types/interview'
 import type { ResumeData, Education, Experience, Certification } from '../types/resume'
+import type { CompanyReport } from '../types/companyReport'
 
 const apiKey = import.meta.env.VITE_OPENAI_API_KEY
 
@@ -554,6 +555,157 @@ export async function generateSelfIntroFromInterview(
       q2_answer: '책임감이 강하고 꼼꼼한 성격으로 업무에 임합니다. 팀원들과의 원활한 소통을 중시하며, 주어진 업무를 성실하게 완수합니다.',
       q3_question: 'Q3. 기억에 남는 경험',
       q3_answer: '다양한 업무 경험을 통해 문제 해결 능력을 키웠습니다. 어려운 상황에서도 침착하게 대응하고, 최선의 결과를 도출하기 위해 노력합니다.',
+    }
+  }
+}
+
+const COMPANY_REPORT_SYSTEM_PROMPT = `당신은 기업 및 직무 분석 전문가입니다. 시니어 재취업 지원자를 위한 상세한 기업 분석 리포트를 작성합니다.
+
+**역할:**
+- 인터뷰에서 수집한 정보(희망 회사, 희망 직무, 지원자 경력 등)를 바탕으로 기업 분석 리포트를 작성합니다.
+- 시니어 재취업 지원자에게 유용한 정보를 제공합니다.
+- 객관적이고 구체적인 정보를 제공합니다.
+
+**작성 형식:**
+다음 JSON 구조로 반환하세요:
+{
+  "companyName": "회사명",
+  "jobTitle": "직무명",
+  "intro": "기업 및 직무 분석 소개 (2-3줄)",
+  "companyInfo": "회사 정보 및 산업 분석 (5-7줄)",
+  "financialStability": "재무 안정성 및 성장성 (4-6줄)",
+  "latestTrends": {
+    "description": "최신 동향 소개 문구",
+    "items": [
+      {"title": "항목 제목", "content": "항목 내용"},
+      ...
+    ]
+  },
+  "jobAnalysis": {
+    "description": "직무 심층 분석 소개 (2-3줄)",
+    "mainTasks": "주요 업무 설명 (2-3줄)",
+    "requiredSkills": "요구 역량 설명 (2-3줄)",
+    "careerPath": "커리어 경로 설명 (2-3줄)"
+  },
+  "seniorFit": {
+    "strengths": "5060 시니어 강점 (3-4줄)",
+    "challenges": "5060 시니어 핵심 과제 (3-4줄)"
+  },
+  "coachTip": "Coach's Tip (5-7줄)"
+}
+
+**작성 원칙:**
+- 객관적이고 구체적인 정보 제공
+- 시니어 재취업 지원자에게 실용적인 조언
+- 최신 동향과 트렌드 반영
+- 긍정적이면서도 현실적인 평가
+- 각 섹션은 적절한 길이로 작성 (너무 짧거나 길지 않게)`
+
+/**
+ * 인터뷰 요약을 바탕으로 기업 분석 리포트를 생성합니다.
+ */
+export async function generateCompanyReport(
+  summary: InterviewSummary
+): Promise<CompanyReport> {
+  try {
+    const companyName = summary.targetCompany || '관련 기업'
+    const jobTitle = summary.targetJobTitle || '관련 직무'
+
+    const userPrompt = `다음은 인터뷰에서 추출한 지원자 정보입니다. 이 정보를 바탕으로 기업 분석 리포트를 작성해주세요.
+
+**지원자 정보:**
+- 이름: ${summary.name || '지원자'}
+- 희망 회사: ${companyName}
+- 희망 직무: ${jobTitle}
+- 이전 회사: ${summary.previousCompany || '없음'}
+- 이전 직무: ${summary.previousJobTitle || '없음'}
+- 주요 기술: ${summary.skills.join(', ') || '없음'}
+- 자격증: ${summary.certificates.join(', ') || '없음'}
+- 주요 성과: ${summary.achievements.join(', ') || '없음'}
+
+위 정보를 바탕으로 "${companyName}"의 "${jobTitle}" 직무에 대한 상세한 기업 분석 리포트를 작성해주세요. 시니어 재취업 지원자에게 유용한 정보를 포함해주세요.`
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: COMPANY_REPORT_SYSTEM_PROMPT },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
+    })
+
+    const content = response.choices[0]?.message?.content
+    if (!content) {
+      throw new Error('LLM 응답이 비어있습니다.')
+    }
+
+    // JSON 파싱
+    let parsed: any
+    try {
+      parsed = JSON.parse(content)
+    } catch (parseError) {
+      console.error('JSON 파싱 실패:', parseError)
+      console.error('원본 응답:', content)
+      throw new Error('LLM 응답을 JSON으로 파싱할 수 없습니다.')
+    }
+
+    // 기본값 설정 및 검증
+    const report: CompanyReport = {
+      companyName: parsed.companyName || companyName,
+      jobTitle: parsed.jobTitle || jobTitle,
+      intro: parsed.intro || `${companyName}의 ${jobTitle} 직무는 시니어의 경험과 전문성을 발휘할 수 있는 기회를 제공합니다.`,
+      companyInfo: parsed.companyInfo || `${companyName}은 해당 산업 분야에서 중요한 위치를 차지하고 있습니다.`,
+      financialStability: parsed.financialStability || '재무적으로 안정적인 기업으로 판단됩니다.',
+      latestTrends: parsed.latestTrends || {
+        description: '최신 동향 및 근무 환경',
+        items: [
+          { title: '주요 특징', content: '최신 기술과 트렌드를 반영한 업무 환경' },
+        ],
+      },
+      jobAnalysis: parsed.jobAnalysis || {
+        description: '직무 심층 분석',
+        mainTasks: '주요 업무를 수행합니다.',
+        requiredSkills: '필요한 역량을 갖추고 있습니다.',
+        careerPath: '커리어 성장 경로가 있습니다.',
+      },
+      seniorFit: parsed.seniorFit || {
+        strengths: '오랜 경험에서 비롯된 전문성과 리더십',
+        challenges: '최신 기술 트렌드에 대한 지속적인 학습',
+      },
+      coachTip: parsed.coachTip || '면접 시 본인의 경험과 전문성을 구체적으로 어필하세요.',
+    }
+
+    return report
+  } catch (error) {
+    console.error('기업 분석 리포트 생성 중 에러 발생:', error)
+    // 에러 발생 시 기본값 반환
+    const companyName = summary.targetCompany || '관련 기업'
+    const jobTitle = summary.targetJobTitle || '관련 직무'
+    
+    return {
+      companyName,
+      jobTitle,
+      intro: `${companyName}의 ${jobTitle} 직무는 시니어의 경험과 전문성을 발휘할 수 있는 기회를 제공합니다.`,
+      companyInfo: `${companyName}은 해당 산업 분야에서 중요한 위치를 차지하고 있으며, 지속적인 성장을 추구하고 있습니다.`,
+      financialStability: '재무적으로 안정적인 기업으로 판단되며, 장기적인 관점에서 안정적인 고용 환경을 제공할 것으로 예상됩니다.',
+      latestTrends: {
+        description: '언론 보도에 따르면 다음과 같은 특징을 보입니다.',
+        items: [
+          { title: '주요 특징', content: '최신 기술과 트렌드를 반영한 업무 환경' },
+        ],
+      },
+      jobAnalysis: {
+        description: '직무 심층 분석',
+        mainTasks: '주요 업무를 수행하며, 복잡한 문제 해결과 기술 리더십을 발휘합니다.',
+        requiredSkills: '특정 기술 스택에 대한 숙련도와 시스템 설계 능력이 필요합니다.',
+        careerPath: 'Principal Engineer, Architect, Technical Lead 등으로 성장할 수 있는 경로가 있습니다.',
+      },
+      seniorFit: {
+        strengths: '오랜 경험에서 비롯된 깊이 있는 전문성, 시스템 전체를 조망하는 아키텍처 역량, 복잡한 문제 해결 능력, 그리고 후배를 이끄는 리더십',
+        challenges: '빠르게 변화하는 기술 트렌드에 대한 지속적인 학습과 최신 기술 적용 경험을 증명하는 것이 중요합니다.',
+      },
+      coachTip: '면접 시에는 본인이 쌓아온 깊이 있는 기술 전문성과 함께, 최근에 학습하고 적용한 최신 기술에 대한 구체적인 사례를 들어 설명하는 것이 중요합니다.',
     }
   }
 }

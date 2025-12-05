@@ -11,7 +11,7 @@ export default function App() {
       <Route path="/interview" element={<InterviewPage />} />
       <Route path="/resume" element={<ResumePage />} />
       <Route path="/company-report" element={<CompanyReportPage />} />
-      <Route path="/history" element={<MainPage />} />
+      <Route path="/history" element={<CompanyReportPage />} />
       <Route path="/settings" element={<MainPage />} />
       <Route path="/notifications" element={<MainPage />} />
       <Route path="/my-page" element={<MainPage />} />
