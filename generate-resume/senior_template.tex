@@ -44,14 +44,6 @@
 \begin{document}
 \pagestyle{empty}
 
-% ====================================================================
-% [문서 제목 추가]
-% ====================================================================
-\begin{center}
-    {\huge\bfseries 이 력 서}
-\end{center}
-\vspace{1em} % 제목과 본문 사이 간격
-
 % [중요] 패키지 로드 부분에 \usepackage{tabularx} 와 \usepackage{array} 가 있어야 합니다.
 
 % ====================================================================
@@ -94,16 +86,6 @@
     \end{tabularx}
 \end{minipage}
 % ====================================================================
-% [섹션 1: 핵심 역량]
-% ====================================================================
-%\begin{cvsection}{자기 소개}
-%    \begin{itemize}[leftmargin=*, noitemsep, topsep=0pt]
-%    \BLOCK{ for item in introduction }
-%        \item \VAR{item}
-%    \BLOCK{ endfor }
-%    \end{itemize}
-%\end{cvsection}
-% ====================================================================
 % [섹션 2: 경력 사항]
 % ====================================================================
 \begin{cvsection}{경력 사항}
@@ -111,7 +93,7 @@
     \noindent 
     \begin{minipage}[t]{0.75\textwidth}
         \textbf{\large \VAR{job.company}} \\
-        \textbf{\textit{\small \VAR{job.role}}}
+        \textit{\small \VAR{job.role}}
     \end{minipage}%
     \hfill
     \begin{minipage}[t]{0.20\textwidth}
@@ -119,18 +101,6 @@
         \textbf{\textit{\small \VAR{job.period}}} \\
         \textbf{\textit{\small \VAR{job.location}}}
     \end{minipage}
-
-    \vspace{0.5em}
-    \begin{itemize}[leftmargin=1.2em, itemsep=2pt, topsep=0pt]
-        \BLOCK{ for detail in job.details }
-        \item {\VAR{detail.title}}
-            \begin{itemize}[label=-, topsep=0pt]
-                \BLOCK{ for sub in detail.descriptions }
-                \item \VAR{sub}
-                \BLOCK{ endfor }
-            \end{itemize}
-        \BLOCK{ endfor }
-    \end{itemize}
 
     \BLOCK{ if not loop.last }
     \vspace{0.8em}
@@ -145,11 +115,27 @@
 % ====================================================================
 \begin{cvsection}{학력}
     \BLOCK{ for edu in education }
-    \noindent \textbf{{\VAR{edu.institution}}} \hfill \textbf{\textit{\VAR{edu.period}}} \\
-    \textbf{\VAR{edu.degree}}
-    \BLOCK{ if not loop.last } \vspace{0.5em} \BLOCK{ endif }
+    \noindent
+    \begin{minipage}[t]{0.75\textwidth}
+        \textbf{\large \VAR{edu.institution}} \\
+        \BLOCK{ if edu.degree }
+            \textit{\small \VAR{edu.degree}}
+        \BLOCK{ endif }
+    \end{minipage}%
+    \hfill
+    \begin{minipage}[t]{0.20\textwidth}
+        \raggedleft
+        \textbf{\textit{\small \VAR{edu.period}}}
+    \end{minipage}
+
+    \BLOCK{ if not loop.last }
+        \vspace{0.8em}
+        \hrule
+        \vspace{0.8em}
+    \BLOCK{ endif }
     \BLOCK{ endfor }
 \end{cvsection}
+
 
 % ====================================================================
 % [섹션 4: 자격증 및 어학
