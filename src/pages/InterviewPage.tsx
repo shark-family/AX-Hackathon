@@ -25,7 +25,7 @@ const SendIcon = ({ className, color = "#ffffff" }: { className?: string; color?
 
 export default function InterviewPage() {
   const navigate = useNavigate()
-  const { messages, addMessage, isLoadingSummary, isThinking, summary, hasFinishedInterview, setResumePdfUrl } = useInterviewStore()
+  const { messages, addMessage, isLoadingSummary, isThinking, summary, hasFinishedInterview } = useInterviewStore()
   const steps = ["기본 정보", "경력 사항", "개인의 강점", "희망 직무", "최종 확인"]
   const [inputValue, setInputValue] = useState("")
   const [displayName, setDisplayName] = useState("")
@@ -289,7 +289,8 @@ export default function InterviewPage() {
                   
                   // Blob을 URL로 변환하여 저장
                   const pdfUrl = URL.createObjectURL(pdfBlob)
-                  setResumePdfUrl(pdfUrl)
+                  useInterviewStore.getState().setResumePdfUrl(pdfUrl)
+                  useInterviewStore.getState().setResumePdfBlob(pdfBlob)
                   
                   console.log("PDF 생성 완료!")
                   

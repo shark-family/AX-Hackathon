@@ -48,7 +48,7 @@ const BriefcaseIcon = ({ className }: { className?: string }) => (
 
 export default function ResumePage() {
   const navigate = useNavigate()
-  const { resumePdfUrl, summary } = useInterviewStore()
+  const { resumePdfUrl, resumePdfBlob, summary } = useInterviewStore()
   const [selectedFormat, setSelectedFormat] = useState<"PDF" | "HWP" | "DOCX">("PDF")
   const [scale, setScale] = useState(1)
 <<<<<<< HEAD
@@ -57,10 +57,10 @@ export default function ResumePage() {
   
   // PDF URL이 없으면 인터뷰 페이지로 리다이렉트
   useEffect(() => {
-    if (!resumePdfUrl) {
+    if (!resumePdfUrl && !resumePdfBlob) {
       navigate("/interview")
     }
-  }, [resumePdfUrl, navigate])
+  }, [resumePdfUrl, resumePdfBlob, navigate])
   
   // 컴포넌트 언마운트 시 URL 해제
   useEffect(() => {
@@ -76,40 +76,55 @@ export default function ResumePage() {
     setScale((prev) => Math.min(2, Math.max(0.6, parseFloat((prev + delta).toFixed(2)))))
   }
 
-  const handleDownload = async () => {
-    if (!resumePdfUrl) return
+  const handleDownload = () => {
+    // Blob이 있으면 직접 사용, 없으면 URL에서 가져오기
+    const blobToDownload = resumePdfBlob
+    
+    if (!blobToDownload && !resumePdfUrl) {
+      alert('다운로드할 파일이 없습니다.')
+      return
+    }
     
     try {
-      // Blob URL에서 Blob을 가져옴
-      const response = await fetch(resumePdfUrl)
-      if (!response.ok) {
-        throw new Error('PDF 다운로드 실패')
+      // Blob이 있으면 직접 사용
+      if (blobToDownload) {
+        const url = window.URL.createObjectURL(blobToDownload)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = `resume_${summary.name || "지원자"}.pdf`
+        link.style.display = "none"
+        
+        document.body.appendChild(link)
+        link.click()
+        
+        // 정리
+        setTimeout(() => {
+          document.body.removeChild(link)
+          window.URL.revokeObjectURL(url)
+        }, 100)
+      } else if (resumePdfUrl) {
+        // Blob이 없으면 URL에서 가져오기
+        const link = document.createElement("a")
+        link.href = resumePdfUrl
+        link.download = `resume_${summary.name || "지원자"}.pdf`
+        link.target = "_blank"
+        link.rel = "noopener"
+        link.style.display = "none"
+        
+        document.body.appendChild(link)
+        link.click()
+        
+        setTimeout(() => {
+          document.body.removeChild(link)
+        }, 100)
       }
-      
-      const blob = await response.blob()
-      
-      // Blob을 다운로드
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `resume_${summary.name || "지원자"}.pdf`
-      link.style.display = "none"
-      
-      document.body.appendChild(link)
-      link.click()
-      
-      // 정리
-      setTimeout(() => {
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
-      }, 100)
     } catch (error) {
       console.error('다운로드 실패:', error)
       alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
     }
   }
   
-  if (!resumePdfUrl) {
+  if (!resumePdfUrl && !resumePdfBlob) {
     return null // 리다이렉트 중
   }
 
