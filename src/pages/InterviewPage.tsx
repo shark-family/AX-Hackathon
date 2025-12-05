@@ -4,7 +4,7 @@ import ChatBubble from "../components/ChatBubble.tsx"
 import Header from "../components/Header.tsx"
 import SummaryPanel from "../components/SummaryPanel.tsx"
 import { useInterviewStore } from "../stores/interviewStore.ts"
-import { generateResumeData } from "../services/llmService.ts"
+import { generateResumeData, normalizeResumeData, generateSelfIntroFromInterview } from "../services/llmService.ts"
 import { generateResumePDF } from "../services/apiService.ts"
 import type { ResumeData } from "../types/resume.ts"
 
@@ -259,33 +259,116 @@ export default function InterviewPage() {
                   const currentSummary = useInterviewStore.getState().summary
                   const currentMessages = useInterviewStore.getState().messages
                   
-                  // 기본값 설정 (하드코딩)
+                  // 기본값 설정 (예시 데이터)
                   const defaultResumeData: Partial<ResumeData> = {
-                    name: currentSummary.name || "지원자",
+                    name: currentSummary.name || "김매경",
                     birthdate: "1966년 3월 24일",
                     address: "서울특별시 중구 퇴계로 190 (필동1가)",
                     photo_path: "senior_photo.png",
                     phone: "010-2000-2000",
                     email: "sciver@mk.co.kr",
                     emergency_contact: "(관계: 배우자) 010-2000-2114",
-                    education: [],
-                    experience: [],
-                    certifications: [],
+                    education: [
+                      {
+                        institution: "서울중앙고등학교",
+                        period: "1982.03 -- 1985.02"
+                      },
+                      {
+                        institution: "경기대학교",
+                        degree: "경영학과",
+                        period: "1986.03 -- 1990.02"
+                      }
+                    ],
+                    experience: [
+                      {
+                        company: "OO은행",
+                        role: "영업지원 / 고객상담 담당",
+                        period: "1991.03 -- 2001.02",
+                        location: "서울 지역"
+                      },
+                      {
+                        company: "OO캐피탈",
+                        role: "사무관리 / 채권관리",
+                        period: "2001.04 -- 2008.12",
+                        location: "서울 본사"
+                      },
+                      {
+                        company: "OO자산관리",
+                        role: "시설·안전관리 / 입주민 응대",
+                        period: "2009.02 -- 2022.12",
+                        location: "서울·경기 근린시설"
+                      }
+                    ],
+                    certifications: [
+                      {
+                        title: "주택관리사(보)",
+                        issuer: "한국산업인력공단",
+                        date: "2023.12"
+                      },
+                      {
+                        title: "소방안전관리자 2급",
+                        issuer: "한국소방안전원",
+                        date: "2024.01"
+                      },
+                      {
+                        title: "조경기능사",
+                        issuer: "한국산업인력공단",
+                        date: "2023.06"
+                      },
+                      {
+                        title: "컴퓨터활용능력 2급",
+                        issuer: "대한상공회의소",
+                        date: "2022.08"
+                      },
+                      {
+                        title: "TOEIC",
+                        score: "650점",
+                        date: "2022.05"
+                      }
+                    ],
                   }
                   
                   // 인터뷰 내용을 이력서 JSON으로 변환
                   console.log("이력서 데이터 생성 중...")
-                  const resumeData = await generateResumeData(
+                  const rawResumeData = await generateResumeData(
                     currentMessages,
                     currentSummary,
                     defaultResumeData
                   )
                   
-                  console.log("생성된 이력서 데이터:", resumeData)
+                  // 빈 값 정규화
+                  console.log("이력서 데이터 정규화 중...")
+                  const resumeData = normalizeResumeData(rawResumeData, currentSummary)
+                  
+                  // 자기소개서 생성
+                  console.log("자기소개서 생성 중...")
+                  const selfIntro = await generateSelfIntroFromInterview(currentSummary)
+                  
+                  // 자기소개서를 cover_letter 형식으로 변환 (템플릿 호환성)
+                  const resumeDataWithSelfIntro = {
+                    ...resumeData,
+                    self_intro: selfIntro,
+                    cover_letter: [
+                      {
+                        question: selfIntro.q1_question,
+                        answer: selfIntro.q1_answer,
+                      },
+                      {
+                        question: selfIntro.q2_question,
+                        answer: selfIntro.q2_answer,
+                      },
+                      {
+                        question: selfIntro.q3_question,
+                        answer: selfIntro.q3_answer,
+                      },
+                    ],
+                  }
+                  
+                  console.log("생성된 이력서 데이터:", resumeDataWithSelfIntro)
                   
                   // PDF 생성
                   console.log("PDF 생성 중...")
-                  const pdfBlob = await generateResumePDF(resumeData)
+                  const pdfBlob = await generateResumePDF(resumeDataWithSelfIntro)
                   
                   // Blob을 URL로 변환하여 저장
                   const pdfUrl = URL.createObjectURL(pdfBlob)

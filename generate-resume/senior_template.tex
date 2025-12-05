@@ -93,75 +93,116 @@
 % [섹션 2: 경력 사항]
 % ====================================================================
 \begin{cvsection}{경력 사항}
-    \BLOCK{ for job in experience }
-    \noindent 
-    \begin{minipage}[t]{0.75\textwidth}
-        \textbf{\large \VAR{job.company}} \\
-        \textit{\small \VAR{job.role}}
-    \end{minipage}%
-    \hfill
-    \begin{minipage}[t]{0.20\textwidth}
-        \raggedleft
-        \textbf{\textit{\small \VAR{job.period}}} \\
-        \textbf{\textit{\small \VAR{job.location}}}
-    \end{minipage}
+    \BLOCK{ if experience and experience|length > 0 }
+        \BLOCK{ for job in experience }
+        \noindent 
+        \begin{minipage}[t]{0.75\textwidth}
+            \textbf{\large \VAR{job.company | default('OO회사')}} \\
+            \textit{\small \VAR{job.role | default('일반 업무')}}
+        \end{minipage}%
+        \hfill
+        \begin{minipage}[t]{0.20\textwidth}
+            \raggedleft
+            \textbf{\textit{\small \VAR{job.period | default('약 10년')}}} \\
+            \textbf{\textit{\small \VAR{job.location | default('서울 지역')}}}
+        \end{minipage}
 
-    \BLOCK{ if not loop.last }
-    \vspace{0.8em}
-    \hrule
-    \vspace{0.8em}
+        \BLOCK{ if not loop.last }
+        \vspace{0.8em}
+        \hrule
+        \vspace{0.8em}
+        \BLOCK{ endif }
+        \BLOCK{ endfor }
+    \BLOCK{ else }
+        \noindent
+        \begin{minipage}[t]{0.75\textwidth}
+            \textbf{\large OO회사} \\
+            \textit{\small 일반 업무}
+        \end{minipage}%
+        \hfill
+        \begin{minipage}[t]{0.20\textwidth}
+            \raggedleft
+            \textbf{\textit{\small 약 10년}} \\
+            \textbf{\textit{\small 서울 지역}}
+        \end{minipage}
     \BLOCK{ endif }
-    \BLOCK{ endfor }
 \end{cvsection}
 
 % ====================================================================
 % [섹션 3: 학력]
 % ====================================================================
 \begin{cvsection}{학력}
-    \BLOCK{ for edu in education }
-    \noindent
-    \begin{minipage}[t]{0.75\textwidth}
-        \textbf{\large \VAR{edu.institution}} \\
-        \BLOCK{ if edu.degree }
-            \textit{\small \VAR{edu.degree}}
-        \BLOCK{ endif }
-    \end{minipage}%
-    \hfill
-    \begin{minipage}[t]{0.20\textwidth}
-        \raggedleft
-        \textbf{\textit{\small \VAR{edu.period}}}
-    \end{minipage}
+    \BLOCK{ if education and education|length > 0 }
+        \BLOCK{ for edu in education }
+        \noindent
+        \begin{minipage}[t]{0.75\textwidth}
+            \textbf{\large \VAR{edu.institution | default('고등학교 졸업')}} \\
+            \BLOCK{ if edu.degree }
+                \textit{\small \VAR{edu.degree}}
+            \BLOCK{ endif }
+        \end{minipage}%
+        \hfill
+        \begin{minipage}[t]{0.20\textwidth}
+            \raggedleft
+            \textbf{\textit{\small \VAR{edu.period | default('1980년경')}}}
+        \end{minipage}
 
-    \BLOCK{ if not loop.last }
-        \vspace{0.8em}
-        \hrule
-        \vspace{0.8em}
+        \BLOCK{ if not loop.last }
+            \vspace{0.8em}
+            \hrule
+            \vspace{0.8em}
+        \BLOCK{ endif }
+        \BLOCK{ endfor }
+    \BLOCK{ else }
+        \noindent
+        \begin{minipage}[t]{0.75\textwidth}
+            \textbf{\large 고등학교 졸업(검정고시 포함)}
+        \end{minipage}%
+        \hfill
+        \begin{minipage}[t]{0.20\textwidth}
+            \raggedleft
+            \textbf{\textit{\small 1980년경}}
+        \end{minipage}
     \BLOCK{ endif }
-    \BLOCK{ endfor }
 \end{cvsection}
 
 % ====================================================================
-% [섹션 4: 자격증 및 어학
+% [섹션 4: 자격증 및 어학]
 % ====================================================================
 \begin{cvsection}{자격증 및 어학}
-    % [표 형태로 변경]
-    % 구조: 자격증명(6cm) | 세부내용(자동채움) | 날짜(우측정렬)
-    \renewcommand{\arraystretch}{2} % 행 간격 조절
-    \begin{tabularx}{\linewidth}{@{} p{6cm} X r @{}}
-    \BLOCK{ for cert in certifications }
-        \textbf{{\VAR{cert.title}}} & 
-        \BLOCK{ if cert.score }
-            \textbf{{\small \VAR{cert.score}}}
-        \BLOCK{ elif cert.issuer }
-            \textbf{{\small \VAR{cert.issuer}}}
-        \BLOCK{ endif }
-        & 
-        {\small\color{black}\textbf{\textit{\VAR{cert.date}}}} \\
-    \BLOCK{ endfor }
-    \end{tabularx}
+    \BLOCK{ if certifications and certifications|length > 0 }
+        % [표 형태로 변경]
+        % 구조: 자격증명(6cm) | 세부내용(자동채움) | 날짜(우측정렬)
+        \renewcommand{\arraystretch}{2} % 행 간격 조절
+        \begin{tabularx}{\linewidth}{@{} p{6cm} X r @{}}
+        \BLOCK{ for cert in certifications }
+            \textbf{{\VAR{cert.title | default('관련 자격증')}}} & 
+            \BLOCK{ if cert.score }
+                \textbf{{\small \VAR{cert.score}}}
+            \BLOCK{ elif cert.issuer }
+                \textbf{{\small \VAR{cert.issuer | default('한국산업인력공단')}}}
+            \BLOCK{ else }
+                \textbf{{\small 한국산업인력공단}}
+            \BLOCK{ endif }
+            & 
+            {\small\color{black}\textbf{\textit{\VAR{cert.date | default('2023년경')}}}}} \\
+        \BLOCK{ endfor }
+        \end{tabularx}
+    \BLOCK{ else }
+        \noindent
+        \begin{minipage}[t]{0.75\textwidth}
+            \textbf{관련 자격증} \\
+            \textit{\small 한국산업인력공단}
+        \end{minipage}%
+        \hfill
+        \begin{minipage}[t]{0.20\textwidth}
+            \raggedleft
+            \textbf{\textit{\small 2023년경}}
+        \end{minipage}
+    \BLOCK{ endif }
 \end{cvsection}
 
-% 자기소개서 메인 타이틀 (선택 사항)
+% 자기소개서 메인 타이틀
 \newpage
 \begin{center}
     % \color{black}을 추가하여 이 부분만 검은색으로 고정
@@ -170,16 +211,37 @@
 \end{center}
 
 % JSON 데이터(cover_letter 리스트)를 순회하며 질문-답변 생성
-\BLOCK{ for item in cover_letter }
-    % 질문(Question)을 박스 제목으로 사용
-    \begin{cvsection}{\VAR{item.question}}
-        % 본문 폰트 및 줄간격 설정 (가독성을 위해 조정)
-        \setlength{\parindent}{0pt}  % 들여쓰기 제거
-        \linespread{1.5}\selectfont  % 줄간격 1.5배 (한글 가독성)
-        
-        % 답변(Answer) 내용 출력
-        \VAR{item.answer}
+\BLOCK{ if cover_letter and cover_letter|length > 0 }
+    \BLOCK{ for item in cover_letter }
+        % 질문(Question)을 박스 제목으로 사용
+        \begin{cvsection}{\VAR{item.question | default('Q. 자기소개')}}
+            % 본문 폰트 및 줄간격 설정 (가독성을 위해 조정)
+            \setlength{\parindent}{0pt}  % 들여쓰기 제거
+            \linespread{1.5}\selectfont  % 줄간격 1.5배 (한글 가독성)
+            
+            % 답변(Answer) 내용 출력
+            \VAR{item.answer | default('재취업을 통해 제 경험과 노하우를 새로운 환경에서 발휘하고 싶습니다.')}
+        \end{cvsection}
+    \BLOCK{ endfor }
+\BLOCK{ else }
+    % cover_letter가 없으면 기본 자기소개서 생성
+    \begin{cvsection}{Q1. 지원 동기 및 희망 직무}
+        \setlength{\parindent}{0pt}
+        \linespread{1.5}\selectfont
+        재취업을 통해 제 경험과 노하우를 새로운 환경에서 발휘하고 싶습니다. 오랜 기간 쌓아온 전문성과 성실한 자세로 조직에 기여하겠습니다.
     \end{cvsection}
-\BLOCK{ endfor }
+    
+    \begin{cvsection}{Q2. 본인의 강점 및 일하는 스타일}
+        \setlength{\parindent}{0pt}
+        \linespread{1.5}\selectfont
+        책임감이 강하고 꼼꼼한 성격으로 업무에 임합니다. 팀원들과의 원활한 소통을 중시하며, 주어진 업무를 성실하게 완수합니다.
+    \end{cvsection}
+    
+    \begin{cvsection}{Q3. 기억에 남는 경험}
+        \setlength{\parindent}{0pt}
+        \linespread{1.5}\selectfont
+        다양한 업무 경험을 통해 문제 해결 능력을 키웠습니다. 어려운 상황에서도 침착하게 대응하고, 최선의 결과를 도출하기 위해 노력합니다.
+    \end{cvsection}
+\BLOCK{ endif }
 
 \end{document}
