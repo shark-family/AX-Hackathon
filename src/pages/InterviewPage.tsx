@@ -4,7 +4,7 @@ import ChatBubble from "../components/ChatBubble.tsx"
 import Header from "../components/Header.tsx"
 import SummaryPanel from "../components/SummaryPanel.tsx"
 import { useInterviewStore } from "../stores/interviewStore.ts"
-import { generateResumeData, normalizeResumeData, generateSelfIntroFromInterview } from "../services/llmService.ts"
+import { generateResumeData, normalizeResumeData, generateSelfIntroFromInterview, generateCompanyReport } from "../services/llmService.ts"
 import { generateResumePDF } from "../services/apiService.ts"
 import type { ResumeData } from "../types/resume.ts"
 
@@ -340,9 +340,16 @@ export default function InterviewPage() {
                   console.log("이력서 데이터 정규화 중...")
                   const resumeData = normalizeResumeData(rawResumeData, currentSummary)
                   
-                  // 자기소개서 생성
-                  console.log("자기소개서 생성 중...")
-                  const selfIntro = await generateSelfIntroFromInterview(currentSummary)
+                  // 자기소개서 및 기업 분석 리포트 동시 생성
+                  console.log("자기소개서 및 기업 분석 리포트 생성 중...")
+                  const [selfIntro, companyReport] = await Promise.all([
+                    generateSelfIntroFromInterview(currentSummary),
+                    generateCompanyReport(currentSummary),
+                  ])
+                  
+                  // 기업 분석 리포트를 store에 저장
+                  useInterviewStore.getState().setCompanyReport(companyReport)
+                  console.log("기업 분석 리포트 생성 완료:", companyReport)
                   
                   // 자기소개서를 cover_letter 형식으로 변환 (템플릿 호환성)
                   const resumeDataWithSelfIntro = {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { ChatMessage, InterviewSummary } from '../types/interview'
 import { defaultSummary } from '../types/interview'
 import { extractInterviewSummary } from '../services/llmService'
+import type { CompanyReport } from '../types/companyReport'
 
 interface InterviewState {
   messages: ChatMessage[]
@@ -14,12 +15,14 @@ interface InterviewState {
   hasFinishedInterview: boolean // 인터뷰 종료 플래그
   resumePdfUrl: string | null // 생성된 이력서 PDF URL
   resumePdfBlob: Blob | null // 생성된 이력서 PDF Blob
+  companyReport: CompanyReport | null // 생성된 기업 분석 리포트
 
   addMessage: (msg: Omit<ChatMessage, 'id' | 'createdAt' | 'pending'>) => Promise<void>
   addClosingMessage: () => void // 마지막 감사 메시지 추가
   updateSummary: () => Promise<void>
   setResumePdfUrl: (url: string | null) => void // PDF URL 설정
   setResumePdfBlob: (blob: Blob | null) => void // PDF Blob 설정
+  setCompanyReport: (report: CompanyReport | null) => void // 기업 분석 리포트 설정
   reset: () => void
 }
 
@@ -33,6 +36,7 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
   hasFinishedInterview: false,
   resumePdfUrl: null,
   resumePdfBlob: null,
+  companyReport: null,
 
   addMessage: async (msg) => {
     // 중복 메시지 체크: 동일한 내용의 메시지가 최근에 추가되었는지 확인
@@ -153,6 +157,10 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
     set({ resumePdfBlob: blob })
   },
 
+  setCompanyReport: (report: CompanyReport | null) => {
+    set({ companyReport: report })
+  },
+
   reset: () => {
     set({
       messages: [],
@@ -163,6 +171,7 @@ export const useInterviewStore = create<InterviewState>((set, get) => ({
       hasFinishedInterview: false,
       resumePdfUrl: null,
       resumePdfBlob: null,
+      companyReport: null,
     })
   },
 }))
