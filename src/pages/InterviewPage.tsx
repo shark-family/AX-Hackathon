@@ -111,8 +111,10 @@ export default function InterviewPage() {
     if (step === 1) return "이전에는 어떤 회사에서 업무를 하셨나요? 또, 어떤 성과를 내셨나요?"
     if (step === 2)
       return `${name}님은 어떤 기술을 가장 잘 활용하시나요? 또는 어떤 부분에서 강점을 갖고 계신가요? 관련 수상이나 자격증도 어필해주세요!`
-    if (step === 3)
-      return `${name} 직무에서 무슨 일을 하고 싶으세요? 구체적으로 말씀해주시면 보다 구체적인 피드백이 가능합니다!`
+    if (step === 3) {
+      const careerText = answers.career || name
+      return `${careerText}에서 무슨 일을 하고 싶으세요? 구체적으로 말씀해주시면 보다 구체적인 피드백이 가능합니다!`
+    }
     return ""
   }
 
