@@ -32,7 +32,8 @@ export default function InterviewPage() {
   const steps = ["기본 정보", "경력 사항", "개인의 강점", "희망 직무", "최종 확인"]
   const [currentStep, setCurrentStep] = useState(0)
   const [inputValue, setInputValue] = useState("")
-  const [displayName, setDisplayName] = useState("지원자")
+  const [displayName, setDisplayName] = useState("")
+  const [companyName, setCompanyName] = useState("")
   const [answers, setAnswers] = useState({
     basic: "",
     career: "",
@@ -43,17 +44,68 @@ export default function InterviewPage() {
 
   const progressPercent = ((currentStep + 1) / steps.length) * 100
 
-  const extractName = (text: string) => {
-    const regex = /(?:이름은|이름이|제\s*이름은)\s*([가-힣A-Za-z]+)/
-    const match = text.match(regex)
-    if (match?.[1]) return match[1]
-    const tokens = text.split(/\s+/).filter((t) => t && !["제", "저는", "저", "입니다", "이고"].includes(t))
-    const candidate = tokens.find((t) => /^[가-힣A-Za-z]{2,}$/.test(t))
-    return candidate
+  const extractNameAndCompany = (text: string) => {
+    // 쉼표로 구분된 경우: "김매경, 삼성" -> 첫 번째는 이름, 두 번째는 회사
+    if (text.includes(",")) {
+      const parts = text.split(",").map((p) => p.trim())
+      if (parts.length >= 2) {
+        const name = parts[0].replace(/^(제|저는|저)\s*이름은?\s*/i, "").trim()
+        const company = parts[1].replace(/^(지원|회사|희망|직무)\s*(?:은|는|이|가)?\s*/i, "").trim()
+        if (name && /^[가-힣]{2,}$/.test(name)) {
+          return { name, company: company || "" }
+        }
+      }
+    }
+
+    // 이름 먼저 찾기 (한글 이름 패턴: 성씨 + 이름)
+    const namePatterns = [
+      /(?:이름은|이름이|제\s*이름은|이름|저는|저)\s*([가-힣]{2,4})/,
+      /^([가-힣]{2,4})(?:\s|,|$)/, // 시작 부분의 한글 이름
+    ]
+    
+    let foundName = ""
+    for (const pattern of namePatterns) {
+      const match = text.match(pattern)
+      if (match?.[1] && /^[가-힣]{2,4}$/.test(match[1])) {
+        foundName = match[1]
+        break
+      }
+    }
+
+    // 이름을 제외한 나머지 텍스트에서 회사 찾기
+    const remainingText = foundName ? text.replace(foundName, "").trim() : text
+    
+    // 회사명 패턴
+    const companyPatterns = [
+      /(?:지원|회사|희망|원하시는\s*회사|지원을\s*원하시는\s*회사|직무)\s*(?:은|는|이|가)?\s*([가-힣A-Za-z]+)/,
+      /([가-힣]{2,}(?:경제|전자|기업|그룹|회사|은행|증권|보험))/,
+    ]
+    
+    let foundCompany = ""
+    for (const pattern of companyPatterns) {
+      const match = remainingText.match(pattern)
+      if (match?.[1] && match[1].length >= 2) {
+        foundCompany = match[1]
+        break
+      }
+    }
+    
+    // 회사명 키워드 직접 검색
+    if (!foundCompany) {
+      const companyKeywords = ["매일경제", "매경", "삼성", "LG", "SK", "현대", "네이버", "카카오", "KT", "롯데"]
+      for (const keyword of companyKeywords) {
+        if (remainingText.includes(keyword)) {
+          foundCompany = keyword === "매경" ? "매일경제" : keyword
+          break
+        }
+      }
+    }
+    
+    return { name: foundName || "", company: foundCompany || "" }
   }
 
   const getPromptForStep = (step: number) => {
-    const name = displayName || "지원자"
+    const name = displayName || "지원자님"
     if (step === 0)
       return "안녕하세요! 인터뷰를 시작하겠습니다. 먼저 성함과 지원을 원하시는 회사 및 직무를 말씀해주시겠어요?"
     if (step === 1) return "이전에는 어떤 회사에서 업무를 하셨나요? 또, 어떤 성과를 내셨나요?"
@@ -81,8 +133,9 @@ export default function InterviewPage() {
     }
 
     if (currentStep === 0) {
-      const name = extractName(trimmed)
+      const { name, company } = extractNameAndCompany(trimmed)
       if (name) setDisplayName(name)
+      if (company) setCompanyName(company)
     }
 
     setAnswers((prev) => ({ ...prev, [stepKeyMap[currentStep]]: trimmed }))
@@ -219,11 +272,15 @@ export default function InterviewPage() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-3">
                       <span className="text-gray-500">이름</span>
-                      <span className="font-medium text-gray-800">김매경</span>
+                      <span className="font-medium text-gray-800">
+                        {displayName || "입력 없음"}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-gray-500">지원회사</span>
-                      <span className="font-medium text-gray-800">매일경제</span>
+                      <span className="font-medium text-gray-800">
+                        {companyName || "입력 없음"}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -231,16 +288,25 @@ export default function InterviewPage() {
 
               <div className="space-y-2">
                 <div className="text-xs font-semibold text-gray-500">주요경력</div>
-                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700">
-                  아직 입력된 정보가 없습니다.
+                <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700 whitespace-pre-line">
+                  {answers.career || "아직 입력된 정보가 없습니다."}
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => navigate("/resume")}
-              className="mt-6 w-full rounded-full bg-[#ff9330] py-3 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d]"
-              style={{ boxShadow: "0 12px 28px rgba(255,147,48,0.28)" }}
+              disabled={currentStep < steps.length - 1}
+              className={`mt-6 w-full rounded-full py-3 text-center text-sm font-semibold text-white shadow-sm transition ${
+                currentStep < steps.length - 1
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-[#ff9330] hover:bg-[#f5851d]"
+              }`}
+              style={
+                currentStep >= steps.length - 1
+                  ? { boxShadow: "0 12px 28px rgba(255,147,48,0.28)" }
+                  : {}
+              }
             >
               다음 단계로
             </button>
