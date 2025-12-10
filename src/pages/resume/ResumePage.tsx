@@ -1,123 +1,26 @@
-import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import Header from "../components/Header.tsx"
-import { useInterviewStore } from "../stores/interviewStore.ts"
-
-const DownloadIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-)
-
-const DocumentIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
-  </svg>
-)
-
-const SparkleIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-  </svg>
-)
-
-const InfoIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="16" x2="12" y2="12" />
-    <line x1="12" y1="8" x2="12.01" y2="8" />
-  </svg>
-)
-
-const BriefcaseIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-  </svg>
-)
+import Header from "../../components/Header.tsx"
+import DownloadIcon from "./components/DownloadIcon.tsx"
+import DocumentIcon from "./components/DocumentIcon.tsx"
+import SparkleIcon from "./components/SparkleIcon.tsx"
+import InfoIcon from "./components/InfoIcon.tsx"
+import BriefcaseIcon from "./components/BriefcaseIcon.tsx"
+import { useResume } from "./hooks/useResume.ts"
 
 export default function ResumePage() {
-  const navigate = useNavigate()
-  const { resumePdfUrl, resumePdfBlob, summary } = useInterviewStore()
-  const [selectedFormat, setSelectedFormat] = useState<"PDF" | "HWP" | "DOCX">("PDF")
-  const [scale, setScale] = useState(1)
-  
-  // PDF URL이 없으면 인터뷰 페이지로 리다이렉트
-  useEffect(() => {
-    if (!resumePdfUrl && !resumePdfBlob) {
-      navigate("/interview")
-    }
-  }, [resumePdfUrl, resumePdfBlob, navigate])
-  
-  // 컴포넌트 언마운트 시 URL 해제
-  useEffect(() => {
-    return () => {
-      if (resumePdfUrl) {
-        URL.revokeObjectURL(resumePdfUrl)
-      }
-    }
-  }, [resumePdfUrl])
+  const {
+    resumePdfUrl,
+    resumePdfBlob,
+    summary,
+    selectedFormat,
+    setSelectedFormat,
+    scale,
+    changeScale,
+    handleDownload,
+    navigateToCompanyReport,
+  } = useResume()
 
-  const changeScale = (delta: number) => {
-    setScale((prev) => Math.min(2, Math.max(0.6, parseFloat((prev + delta).toFixed(2)))))
-  }
-
-  const handleDownload = () => {
-    // Blob이 있으면 직접 사용, 없으면 URL에서 가져오기
-    const blobToDownload = resumePdfBlob
-    
-    if (!blobToDownload && !resumePdfUrl) {
-      alert('다운로드할 파일이 없습니다.')
-      return
-    }
-    
-    try {
-      // Blob이 있으면 직접 사용
-      if (blobToDownload) {
-        const url = window.URL.createObjectURL(blobToDownload)
-        const link = document.createElement("a")
-        link.href = url
-        link.download = `resume_${summary.name || "지원자"}.pdf`
-        link.style.display = "none"
-        
-        document.body.appendChild(link)
-        link.click()
-        
-        // 정리
-        setTimeout(() => {
-          document.body.removeChild(link)
-          window.URL.revokeObjectURL(url)
-        }, 100)
-      } else if (resumePdfUrl) {
-        // Blob이 없으면 URL에서 가져오기
-        const link = document.createElement("a")
-        link.href = resumePdfUrl
-        link.download = `resume_${summary.name || "지원자"}.pdf`
-        link.target = "_blank"
-        link.rel = "noopener"
-        link.style.display = "none"
-        
-        document.body.appendChild(link)
-        link.click()
-        
-        setTimeout(() => {
-          document.body.removeChild(link)
-        }, 100)
-      }
-    } catch (error) {
-      console.error('다운로드 실패:', error)
-      alert('다운로드 중 오류가 발생했습니다. 다시 시도해주세요.')
-    }
-  }
-  
   if (!resumePdfUrl && !resumePdfBlob) {
-    return null // 리다이렉트 중
+    return null
   }
 
   return (
@@ -126,7 +29,6 @@ export default function ResumePage() {
         <Header />
 
         <div className="mt-6 grid grid-cols-[1.2fr_0.8fr] gap-6">
-          {/* Left Panel - Resume Preview */}
           <div className="rounded-3xl bg-[#f5e6d3] p-8 shadow-sm">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-gray-900">{summary.name || "지원자"}님의 이력서</h1>
@@ -136,7 +38,7 @@ export default function ResumePage() {
             </div>
 
             <div className="mb-4 flex items-center justify-between rounded-lg bg-white/50 px-4 py-2">
-              <span className="text-sm font-medium text-gray-700">1/1 페이지</span>
+              <span className="text-sm font-medium text-gray-700">2/2 페이지</span>
               <div className="flex gap-3">
                 <button
                   onClick={() => changeScale(-0.1)}
@@ -155,7 +57,6 @@ export default function ResumePage() {
               </div>
             </div>
 
-            {/* Resume Preview */}
             <div className="relative rounded-2xl bg-white p-4 shadow-lg">
               <div className="overflow-auto rounded-xl border bg-gray-50" style={{ height: "70vh" }}>
                 <div
@@ -180,9 +81,7 @@ export default function ResumePage() {
             </div>
           </div>
 
-          {/* Right Panel - Actions */}
           <div className="space-y-6">
-            {/* File Format Selection */}
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-lg font-semibold text-gray-800">완성된 문서 활용하기</h3>
 
@@ -214,7 +113,6 @@ export default function ResumePage() {
               </button>
             </div>
 
-            {/* AI Features */}
             <div className="rounded-2xl bg-white p-6 shadow-sm">
               <h3 className="mb-4 text-lg font-semibold text-gray-800">추가 옵션</h3>
 
@@ -231,16 +129,14 @@ export default function ResumePage() {
               </div>
             </div>
 
-            {/* Company Report Button */}
             <button
-              onClick={() => navigate("/company-report")}
+              onClick={navigateToCompanyReport}
               className="flex w-full items-center justify-center gap-2 rounded-full bg-[#ff9330] px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#f5851d] transition"
             >
               <BriefcaseIcon className="h-5 w-5" />
               기업 레포트 보기
             </button>
 
-            {/* Info */}
             <div className="flex items-start gap-3 rounded-xl bg-blue-50 p-4">
               <InfoIcon className="h-5 w-5 flex-shrink-0 text-blue-600 mt-0.5" />
               <p className="text-xs text-gray-700 leading-relaxed">
