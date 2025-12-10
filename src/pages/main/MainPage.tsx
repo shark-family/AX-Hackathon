@@ -1,4 +1,4 @@
-import Header from "../components/Header.tsx"
+import Header from "../../components/Header.tsx"
 import { useNavigate } from "react-router-dom"
 
 const stories = [
@@ -122,6 +122,7 @@ export default function MainPage() {
                 <img src="/g2.png" alt="이력서 자동 생성" className="h-full w-full object-contain" />
               </div>
             </div>
+.
             <div className="rounded-2xl border border-gray-100 bg-gradient-to-b from-orange-50 to-white p-5 shadow-sm">
               <div className="text-xs font-semibold text-orange-600">직무 분석</div>
               <p className="mt-2 text-sm font-semibold text-gray-800">기업/직무 분석을 통해 준비도를 높입니다.</p>

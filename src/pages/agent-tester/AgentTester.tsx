@@ -6,7 +6,7 @@ function AgentTester() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = async (event: { preventDefault: () => void; }) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
@@ -26,7 +26,6 @@ function AgentTester() {
       }
 
       const data = await res.json();
-      // API가 반환하는 객체 구조에 맞춰 'data.response'를 사용합니다.
       setResponse(data.response); 
     } catch (e) {
       setError(`요청 실패: ${e.message}`);
@@ -62,7 +61,6 @@ function AgentTester() {
       {response && (
         <div style={{ marginTop: '20px' }}>
           <h2>에이전트 답변</h2>
-          {/* 답변이 Markdown 형식일 수 있으므로 pre 태그로 감싸서 공백을 유지합니다. */}
           <pre style={{ whiteSpace: 'pre-wrap', background: '#f4f4f4', padding: '15px', borderRadius: '5px' }}>
             {response}
           </pre>
