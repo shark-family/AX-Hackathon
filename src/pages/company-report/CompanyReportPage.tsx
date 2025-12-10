@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
 import {
   HiBuildingOffice2,
   HiChartBarSquare,
@@ -9,8 +7,8 @@ import {
   HiNewspaper,
   HiUserGroup,
 } from "react-icons/hi2"
-import Header from "../components/Header.tsx"
-import { useInterviewStore } from "../stores/interviewStore.ts"
+import Header from "../../components/Header.tsx"
+import { useCompanyReport } from "./hooks/useCompanyReport.ts"
 
 const Section = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
   <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-md">
@@ -23,55 +21,7 @@ const Section = ({ icon, title, children }: { icon: React.ReactNode; title: stri
 )
 
 export default function CompanyReportPage() {
-  const navigate = useNavigate()
-  const { reportData, summary, setReportData } = useInterviewStore()
-  const [isLoading, setIsLoading] = useState(!reportData)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (reportData) {
-        setIsLoading(false)
-        return
-      }
-      
-      if (!summary.targetCompany || !summary.targetJobTitle) {
-        setError("인터뷰 데이터가 부족하여 리포트를 생성할 수 없습니다.")
-        setIsLoading(false)
-        return
-      }
-
-      try {
-        console.log("request 데이터: ", summary);
-        const response = await fetch("http://localhost:8000/analyze", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            company_name: summary.targetCompany,
-            job_role: summary.targetJobTitle,
-            skills: summary.skills,
-            experiences: summary.achievements,
-          }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
-        const result = await response.json()
-        setReportData(result)
-      } catch (err) {
-        console.error("Failed to call analyze API:", err)
-        setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [summary, reportData, setReportData])
+  const { reportData, summary, isLoading, error, goBack } = useCompanyReport()
 
   if (isLoading) {
     return (
@@ -104,7 +54,7 @@ export default function CompanyReportPage() {
 
         <div className="mt-8">
           <button
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="mb-6 flex items-center gap-2 rounded-lg text-sm font-semibold text-gray-600 hover:text-gray-900 transition"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
